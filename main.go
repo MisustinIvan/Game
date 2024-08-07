@@ -13,46 +13,31 @@ import (
 const FPS = 120
 
 type Game struct {
-	player   Player
-	emitters []*ParticleEmitter
+	player          *Player
+	emitters        []*ParticleEmitter
+	texture_manager *TextureManager
 }
 
-var bulletSprite *ebiten.Image
-
 func NewGame() *Game {
-
-	image0, _, err := ebitenutil.NewImageFromFile("./res/robot0.png")
+	tm, err := NewTextureManager("./res/unknown.png")
 	if err != nil {
 		panic(err)
 	}
 
-	image1, _, err := ebitenutil.NewImageFromFile("./res/robot1.png")
-	if err != nil {
-		panic(err)
-	}
-
-	image2, _, err := ebitenutil.NewImageFromFile("./res/robot2.png")
-	if err != nil {
-		panic(err)
-	}
-
-	image3, _, err := ebitenutil.NewImageFromFile("./res/robot3.png")
-	if err != nil {
-		panic(err)
-	}
-
-	bulletSprite, _, err = ebitenutil.NewImageFromFile("./res/bullet.png")
-	if err != nil {
-		panic(err)
-	}
+	tm.LoadTexture("bullet", "./res/bullet.png")
+	tm.LoadTexture("robot0", "./res/robot0.png")
+	tm.LoadTexture("robot1", "./res/robot1.png")
+	tm.LoadTexture("robot2", "./res/robot2.png")
+	tm.LoadTexture("robot3", "./res/robot3.png")
 
 	return &Game{
-		player: NewPlayer(Vector2{100, 100}, 100, []*ebiten.Image{image0, image1, image2, image3}),
+		player: NewPlayer(Vector2{100, 100}, 100, tm),
 		emitters: []*ParticleEmitter{
 			NewParticleEmitter(Vector2{100, 150}, 90, 120, 0.3, 0.5, 2, 6, color.RGBA{255, 30, 150, 255}),
 			NewParticleEmitter(Vector2{200, 200}, 60, 90, 0.6, 0.8, 2, 2, color.RGBA{30, 255, 150, 255}),
 			NewParticleEmitter(Vector2{300, 150}, 120, 150, 0.2, 0.4, 3, 3, color.RGBA{150, 30, 255, 255}),
 		},
+		texture_manager: tm,
 	}
 }
 
@@ -79,10 +64,10 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{50, 50, 55, 255})
 
-	g.player.Draw(screen)
 	for _, emitter := range g.emitters {
 		emitter.Draw(screen)
 	}
+	g.player.Draw(screen)
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
 

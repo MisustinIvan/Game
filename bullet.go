@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -79,17 +80,19 @@ func (bm *BulletManager) Draw(screen *ebiten.Image, debug bool) {
 }
 
 type Bullet struct {
-	pos      Vector2
-	hitbox   Vector2
-	vel      Vector2
-	lifetime int
-	damage   int
-	next     *Bullet
-	sprite   *ebiten.Image
+	pos       Vector2
+	hitbox    Vector2
+	vel       Vector2
+	lifetime  int
+	damage    int
+	next      *Bullet
+	sprite    *ebiten.Image
+	emitter   *ParticleEmitter
+	emit_task *Task
 }
 
 func NewBullet(pos Vector2, vel Vector2, sprite *ebiten.Image, lifetime int, damage int) *Bullet {
-	return &Bullet{
+	b := &Bullet{
 		pos:      pos,
 		hitbox:   Vector2{float64(sprite.Bounds().Dx()), float64(sprite.Bounds().Dy())},
 		vel:      vel,
@@ -97,11 +100,22 @@ func NewBullet(pos Vector2, vel Vector2, sprite *ebiten.Image, lifetime int, dam
 		sprite:   sprite,
 		damage:   damage,
 	}
+
+	b.emitter = NewParticleEmitter(b.pos.Add(b.hitbox.Scale(0.5)), 20, 40, 0.6, 0.9, 6, 2, color.RGBA{255, 255, 0, 255})
+	b.emit_task = NewTask(1, func() {
+		vely := (rand.Float64() - 0.5) * 2
+		b.emitter.Emit(b.vel.Scale(-1).Add(Vector2{0, vely}))
+	})
+
+	return b
 }
 
 func (b *Bullet) Update() {
 	b.pos.AddEq(b.vel)
 	b.lifetime -= 1
+	b.emitter.pos = b.pos.Add(b.hitbox.Scale(0.5))
+	b.emit_task.Update()
+	b.emitter.Update()
 }
 
 func (b *Bullet) Decayed() bool {
@@ -112,6 +126,7 @@ func (b *Bullet) Draw(screen *ebiten.Image, debug bool) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(b.pos.x, b.pos.y)
 	screen.DrawImage(b.sprite, op)
+	b.emitter.Draw(screen)
 	if debug {
 		vector.StrokeRect(screen, float32(b.pos.x), float32(b.pos.y), float32(b.hitbox.x), float32(b.hitbox.y), 2, color.RGBA{255, 0, 0, 255}, false)
 	}

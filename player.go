@@ -38,18 +38,25 @@ type Player struct {
 	sprite                 *ebiten.Image
 	speed                  float64
 	state                  state
-	animation_tick         int
+	animation_task         *Task
 	animation_index        int
 	animations             int
 	moving_particle_emiter ParticleEmitter
-	emit_tick              int
+	emit_task              *Task
 	bullet_manager         BulletManager
 	debug                  bool
 	dir
 }
 
-func NewPlayer(pos Vector2, health int, sprites []*ebiten.Image) Player {
-	return Player{
+func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
+	var sprites = []*ebiten.Image{
+		tm.GetTexture("robot0"),
+		tm.GetTexture("robot1"),
+		tm.GetTexture("robot2"),
+		tm.GetTexture("robot3"),
+	}
+
+	p := &Player{
 		pos:                    pos,
 		hitbox:                 Vector2{float64(sprites[0].Bounds().Dx()), float64(sprites[0].Bounds().Dy())},
 		health:                 health,
@@ -60,14 +67,23 @@ func NewPlayer(pos Vector2, health int, sprites []*ebiten.Image) Player {
 		dir:                    left,
 		speed:                  1.25,
 		state:                  idle,
-		animation_tick:         0,
 		animation_index:        0,
 		animations:             len(sprites),
-		emit_tick:              0,
 		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(sprites[0].Bounds().Dx()) - 10, float64(sprites[0].Bounds().Dy()) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
-		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 90, 2, 69, bulletSprite),
+		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 90, 2, 69, tm.GetTexture("bullet")),
 		debug:                  false,
 	}
+
+	p.animation_task = NewTask(animation_timeout, func() {
+		p.animation_index = (p.animation_index + 1) % p.animations
+		p.sprite = p.sprites[p.animation_index]
+	})
+
+	p.emit_task = NewTask(emit_timeout, func() {
+		p.Emit()
+	})
+
+	return p
 }
 
 func (p Player) Draw(screen *ebiten.Image) {
@@ -88,7 +104,8 @@ func (p Player) Draw(screen *ebiten.Image) {
 	p.moving_particle_emiter.Draw(screen)
 	p.bullet_manager.Draw(screen, p.debug)
 }
-func (p *Player) Shoot(bs *ebiten.Image) {
+
+func (p *Player) Shoot() {
 	dir := Vector2{0, 0}
 	if p.dir == left {
 		dir.x = -1
@@ -142,24 +159,16 @@ func (p *Player) Update(g *Game) {
 
 	if move {
 		p.Move(diff)
-		p.emit_tick = (p.emit_tick + 1) % emit_timeout
-		if p.emit_tick == 0 {
-			p.Emit()
-		}
+		p.emit_task.Update()
 	} else {
 		p.state = idle
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		p.Shoot(bulletSprite)
+		p.Shoot()
 	}
 
-	p.animation_tick += 1
-	if p.animation_tick >= animation_timeout {
-		p.animation_index = (p.animation_index + 1) % p.animations
-		p.sprite = p.sprites[p.animation_index]
-		p.animation_tick = 0
-	}
+	p.animation_task.Update()
 
 	p.moving_particle_emiter.Update()
 	p.bullet_manager.Update()
