@@ -101,10 +101,10 @@ func NewBullet(pos Vector2, vel Vector2, sprite *ebiten.Image, lifetime int, dam
 		damage:   damage,
 	}
 
-	b.emitter = NewParticleEmitter(b.pos.Add(b.hitbox.Scale(0.5)), 20, 40, 0.6, 0.9, 6, 2, color.RGBA{255, 255, 0, 255})
+	b.emitter = NewParticleEmitter(b.pos.Add(b.hitbox.Scale(0.5)), 20, 40, 0.6, 0.9, 3, 2, color.RGBA{215, 0, 255, 255})
 	b.emit_task = NewTask(1, func() {
 		vely := (rand.Float64() - 0.5) * 2
-		b.emitter.Emit(b.vel.Scale(-1).Add(Vector2{0, vely}))
+		b.emitter.Emit(b.vel.Scale(-0.25).Add(Vector2{0, vely}))
 	})
 
 	return b

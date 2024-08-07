@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -24,11 +22,23 @@ func NewGame() *Game {
 		panic(err)
 	}
 
-	tm.LoadTexture("bullet", "./res/bullet.png")
-	tm.LoadTexture("robot0", "./res/robot0.png")
-	tm.LoadTexture("robot1", "./res/robot1.png")
-	tm.LoadTexture("robot2", "./res/robot2.png")
-	tm.LoadTexture("robot3", "./res/robot3.png")
+	tm.LoadTexture("bullet", "./res/bullet_pink.png")
+	tm.LoadTexture("robot_idle_0", "./res/robot_idle_0.png")
+	tm.LoadTexture("robot_idle_1", "./res/robot_idle_1.png")
+	tm.LoadTexture("robot_idle_2", "./res/robot_idle_2.png")
+	tm.LoadTexture("robot_idle_3", "./res/robot_idle_3.png")
+	tm.LoadTexture("robot_moving_0", "./res/robot_moving_0.png")
+	tm.LoadTexture("robot_moving_1", "./res/robot_moving_1.png")
+	tm.LoadTexture("robot_moving_2", "./res/robot_moving_2.png")
+	tm.LoadTexture("robot_moving_3", "./res/robot_moving_3.png")
+	tm.LoadTexture("robot_attack_0", "./res/robot_attack_0.png")
+	tm.LoadTexture("robot_attack_1", "./res/robot_attack_1.png")
+	tm.LoadTexture("robot_attack_2", "./res/robot_attack_2.png")
+	tm.LoadTexture("robot_attack_3", "./res/robot_attack_3.png")
+	tm.LoadTexture("robot_attack_moving_0", "./res/robot_attack_moving_0.png")
+	tm.LoadTexture("robot_attack_moving_1", "./res/robot_attack_moving_1.png")
+	tm.LoadTexture("robot_attack_moving_2", "./res/robot_attack_moving_2.png")
+	tm.LoadTexture("robot_attack_moving_3", "./res/robot_attack_moving_3.png")
 
 	return &Game{
 		player: NewPlayer(Vector2{100, 100}, 100, tm),
@@ -68,7 +78,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		emitter.Draw(screen)
 	}
 	g.player.Draw(screen)
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
+	//ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
 
 func (g *Game) Layout(outsideWidth int, outsideHeight int) (int, int) {

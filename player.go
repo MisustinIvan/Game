@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
@@ -16,17 +18,9 @@ const (
 	right
 )
 
-type state int
-
-const (
-	idle = iota
-	moving
-)
-
 const animation_timeout = 0.25 * FPS
-
-// const emit_timeout = 0.025 * FPS
 const emit_timeout = 1
+const player_size = 32
 
 type Player struct {
 	pos                    Vector2
@@ -34,49 +28,101 @@ type Player struct {
 	health                 int
 	xp                     int
 	lvl                    int
-	sprites                []*ebiten.Image
 	sprite                 *ebiten.Image
 	speed                  float64
-	state                  state
+	state                  PlayerState
+	animator               *Animator[PlayerState]
 	animation_task         *Task
-	animation_index        int
-	animations             int
 	moving_particle_emiter ParticleEmitter
 	emit_task              *Task
+	attack_timer           int
 	bullet_manager         BulletManager
 	debug                  bool
 	dir
 }
 
 func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
-	var sprites = []*ebiten.Image{
-		tm.GetTexture("robot0"),
-		tm.GetTexture("robot1"),
-		tm.GetTexture("robot2"),
-		tm.GetTexture("robot3"),
+	var idle_sprites = []*ebiten.Image{
+		tm.GetTexture("robot_idle_0"),
+		tm.GetTexture("robot_idle_1"),
+		tm.GetTexture("robot_idle_2"),
+		tm.GetTexture("robot_idle_3"),
+	}
+
+	var moving_spites = []*ebiten.Image{
+		tm.GetTexture("robot_moving_0"),
+		tm.GetTexture("robot_moving_1"),
+		tm.GetTexture("robot_moving_2"),
+		tm.GetTexture("robot_moving_3"),
+	}
+
+	var attack_sprites = []*ebiten.Image{
+		tm.GetTexture("robot_attack_0"),
+		tm.GetTexture("robot_attack_1"),
+		tm.GetTexture("robot_attack_2"),
+		tm.GetTexture("robot_attack_3"),
+	}
+
+	var attack_moving_sprites = []*ebiten.Image{
+		tm.GetTexture("robot_attack_moving_0"),
+		tm.GetTexture("robot_attack_moving_1"),
+		tm.GetTexture("robot_attack_moving_2"),
+		tm.GetTexture("robot_attack_moving_3"),
 	}
 
 	p := &Player{
 		pos:                    pos,
-		hitbox:                 Vector2{float64(sprites[0].Bounds().Dx()), float64(sprites[0].Bounds().Dy())},
+		hitbox:                 Vector2{float64(player_size), float64(player_size)},
 		health:                 health,
 		xp:                     0,
 		lvl:                    0,
-		sprites:                sprites,
-		sprite:                 sprites[0],
+		sprite:                 idle_sprites[0],
 		dir:                    left,
 		speed:                  1.25,
-		state:                  idle,
-		animation_index:        0,
-		animations:             len(sprites),
-		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(sprites[0].Bounds().Dx()) - 10, float64(sprites[0].Bounds().Dy()) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
+		state:                  PlayerIdle,
+		attack_timer:           0,
+		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(player_size) - 10, float64(player_size) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
 		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 90, 2, 69, tm.GetTexture("bullet")),
 		debug:                  false,
 	}
 
-	p.animation_task = NewTask(animation_timeout, func() {
-		p.animation_index = (p.animation_index + 1) % p.animations
-		p.sprite = p.sprites[p.animation_index]
+	p.animator = NewAnimator[PlayerState](&p.sprite)
+	p.animator.AddAnimation(
+		PlayerIdle,
+		NewAnimation(
+			idle_sprites, animation_timeout,
+		),
+	)
+
+	p.animator.AddAnimation(
+		PlayerMoving,
+		NewAnimation(
+			moving_spites, animation_timeout,
+		),
+	)
+
+	p.animator.AddAnimation(
+		PlayerAttacking,
+		NewAnimation(
+			attack_sprites, animation_timeout,
+		),
+	)
+
+	p.animator.AddAnimation(
+		PlayerMovingAttacking,
+		NewAnimation(
+			attack_moving_sprites, animation_timeout,
+		),
+	)
+
+	p.animator.SetAnimation(PlayerIdle)
+
+	p.animation_task = NewTask(1, func() {
+		if p.animator.ckey != p.state {
+			p.animator.SetAnimation(p.state)
+		}
+
+		p.animator.Update()
 	})
 
 	p.emit_task = NewTask(emit_timeout, func() {
@@ -103,6 +149,8 @@ func (p Player) Draw(screen *ebiten.Image) {
 
 	p.moving_particle_emiter.Draw(screen)
 	p.bullet_manager.Draw(screen, p.debug)
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("Idle: %t\nMoving: %t\nAttacking: %t\nAttackingMoving: %t", p.state == PlayerIdle, p.state == PlayerMoving, p.state == PlayerAttacking, p.state == PlayerMovingAttacking))
 }
 
 func (p *Player) Shoot() {
@@ -114,6 +162,14 @@ func (p *Player) Shoot() {
 	}
 
 	p.bullet_manager.Shoot(dir)
+
+	if p.state == PlayerMoving {
+		p.state = PlayerMovingAttacking
+	} else {
+		p.state = PlayerAttacking
+	}
+
+	p.attack_timer = 2 * animation_timeout
 }
 
 func (p *Player) Emit() {
@@ -157,11 +213,17 @@ func (p *Player) Update(g *Game) {
 		move = true
 	}
 
+	p.animation_task.Update()
+
 	if move {
 		p.Move(diff)
 		p.emit_task.Update()
-	} else {
-		p.state = idle
+	} else if p.attack_timer == 0 {
+		p.state = PlayerIdle
+	}
+
+	if p.attack_timer > 0 {
+		p.attack_timer -= 1
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
@@ -175,7 +237,12 @@ func (p *Player) Update(g *Game) {
 }
 
 func (p *Player) Move(diff Vector2) {
-	p.state = moving
+	if p.attack_timer > 0 {
+		p.state = PlayerMovingAttacking
+	} else {
+		p.state = PlayerMoving
+	}
+
 	if diff.x < 0 {
 		p.dir = left
 		p.moving_particle_emiter.pos.x = p.pos.x + p.hitbox.x - 10
