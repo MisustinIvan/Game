@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -24,41 +25,48 @@ const (
 
 const animation_timeout = 0.25 * FPS
 
+// const emit_timeout = 0.025 * FPS
+const emit_timeout = 1
+
 type Player struct {
-	pos             Vector2
-	hitbox          Vector2
-	health          int
-	xp              int
-	lvl             int
-	sprites         []*ebiten.Image
-	sprite          *ebiten.Image
-	speed           float64
-	state           state
-	animation_tick  int
-	animation_index int
-	animations      int
-	bullets         []*Bullet
-	debug           bool
+	pos                    Vector2
+	hitbox                 Vector2
+	health                 int
+	xp                     int
+	lvl                    int
+	sprites                []*ebiten.Image
+	sprite                 *ebiten.Image
+	speed                  float64
+	state                  state
+	animation_tick         int
+	animation_index        int
+	animations             int
+	moving_particle_emiter ParticleEmitter
+	emit_tick              int
+	bullet_manager         BulletManager
+	debug                  bool
 	dir
 }
 
 func NewPlayer(pos Vector2, health int, sprites []*ebiten.Image) Player {
 	return Player{
-		pos:             pos,
-		hitbox:          Vector2{float64(sprites[0].Bounds().Dx()), float64(sprites[0].Bounds().Dy())},
-		health:          health,
-		xp:              0,
-		lvl:             0,
-		sprites:         sprites,
-		sprite:          sprites[0],
-		dir:             left,
-		speed:           4,
-		state:           idle,
-		animation_tick:  0,
-		animation_index: 0,
-		animations:      len(sprites),
-		bullets:         []*Bullet{},
-		debug:           false,
+		pos:                    pos,
+		hitbox:                 Vector2{float64(sprites[0].Bounds().Dx()), float64(sprites[0].Bounds().Dy())},
+		health:                 health,
+		xp:                     0,
+		lvl:                    0,
+		sprites:                sprites,
+		sprite:                 sprites[0],
+		dir:                    left,
+		speed:                  1.25,
+		state:                  idle,
+		animation_tick:         0,
+		animation_index:        0,
+		animations:             len(sprites),
+		emit_tick:              0,
+		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(sprites[0].Bounds().Dx()) - 10, float64(sprites[0].Bounds().Dy()) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
+		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 90, 2, 69, bulletSprite),
+		debug:                  false,
 	}
 }
 
@@ -77,19 +85,39 @@ func (p Player) Draw(screen *ebiten.Image) {
 		vector.StrokeRect(screen, float32(p.pos.x), float32(p.pos.y), float32(p.hitbox.x), float32(p.hitbox.y), 1, color.RGBA{255, 0, 0, 255}, false)
 	}
 
-	for _, b := range p.bullets {
-		b.Draw(screen)
+	p.moving_particle_emiter.Draw(screen)
+	p.bullet_manager.Draw(screen, p.debug)
+}
+func (p *Player) Shoot(bs *ebiten.Image) {
+	dir := Vector2{0, 0}
+	if p.dir == left {
+		dir.x = -1
+	} else {
+		dir.x = 1
 	}
+
+	p.bullet_manager.Shoot(dir)
 }
 
-func (p *Player) Shoot(bs *ebiten.Image) {
+func (p *Player) Emit() {
 	vel := Vector2{0, 0}
-	if p.dir == left {
-		vel.x = -1
-	} else {
+	pos := p.pos
+	pos.y += p.hitbox.y
+	switch p.dir {
+	case left:
 		vel.x = 1
+		pos.x = p.pos.x + p.hitbox.x
+	case right:
+		vel.x = -1
+		pos.x = p.pos.x
 	}
-	p.bullets = append(p.bullets, NewBullet(p.pos, vel, bs))
+
+	vel.y = (rand.Float64() / -2) - 0.5
+
+	speed := 0.5
+	vel = vel.Norm().Scale(speed)
+
+	p.moving_particle_emiter.Emit(vel)
 }
 
 func (p *Player) Update(g *Game) {
@@ -114,6 +142,10 @@ func (p *Player) Update(g *Game) {
 
 	if move {
 		p.Move(diff)
+		p.emit_tick = (p.emit_tick + 1) % emit_timeout
+		if p.emit_tick == 0 {
+			p.Emit()
+		}
 	} else {
 		p.state = idle
 	}
@@ -129,21 +161,23 @@ func (p *Player) Update(g *Game) {
 		p.animation_tick = 0
 	}
 
-	// TODO linked list or something idk
-	for _, b := range p.bullets {
-		if b != nil {
-			b.Update()
-		}
-	}
+	p.moving_particle_emiter.Update()
+	p.bullet_manager.Update()
 }
 
 func (p *Player) Move(diff Vector2) {
 	p.state = moving
 	if diff.x < 0 {
 		p.dir = left
+		p.moving_particle_emiter.pos.x = p.pos.x + p.hitbox.x - 10
+		p.bullet_manager.pos.x = p.pos.x - 16
 	} else if diff.x > 0 {
 		p.dir = right
+		p.moving_particle_emiter.pos.x = p.pos.x + 4
+		p.bullet_manager.pos.x = p.pos.x + p.hitbox.x
 	}
 
 	p.pos = p.pos.Add(diff.Norm().Scale(p.speed))
+	p.moving_particle_emiter.pos.y = p.pos.y + p.hitbox.y - 4
+	p.bullet_manager.pos.y = p.pos.y
 }
