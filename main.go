@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const FPS = 120
@@ -15,6 +18,7 @@ type Game struct {
 	emitters        []*ParticleEmitter
 	texture_manager *TextureManager
 	background      *ebiten.Image
+	walls_quadtree  *QNodeStatic
 }
 
 func NewGame() *Game {
@@ -56,6 +60,25 @@ func NewGame() *Game {
 	tm.LoadTexture("robot_attack_moving_3", "./res/robot_attack_moving_3.png")
 
 	tm.LoadTexture("background", "./res/background.png")
+	wq := NewStaticNode(NewRect(Vector2{0, 0}, Vector2{960, 600}), 4)
+	for i := 0; i < 100; i++ {
+
+		rect := Rect{
+			pos: Vector2{
+				x: rand.Float64() * 940,
+				y: rand.Float64() * 580,
+			},
+			extents: Vector2{
+				x: rand.Float64() * 20,
+				y: rand.Float64() * 20,
+			},
+		}
+
+		wq.Insert(Entity{
+			id:   i,
+			rect: rect,
+		})
+	}
 
 	return &Game{
 		player: NewPlayer(Vector2{100, 100}, 100, tm),
@@ -66,6 +89,7 @@ func NewGame() *Game {
 		},
 		texture_manager: tm,
 		background:      tm.GetTexture("background"),
+		walls_quadtree:  wq,
 	}
 }
 
@@ -98,11 +122,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		emitter.Draw(screen)
 	}
 	g.player.Draw(screen)
-	//ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
+	g.walls_quadtree.Draw(screen)
+
+	for _, val := range g.walls_quadtree.Query(NewRect(g.player.pos, g.player.hitbox)) {
+		vector.StrokeRect(screen, float32(val.rect.pos.x), float32(val.rect.pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{0, 0, 255, 255}, false)
+	}
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
 
 func (g *Game) Layout(outsideWidth int, outsideHeight int) (int, int) {
-	return outsideWidth / 4, outsideHeight / 4
+	return outsideWidth / 2, outsideHeight / 2
 }
 
 func main() {

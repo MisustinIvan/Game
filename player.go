@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
@@ -150,7 +148,7 @@ func (p Player) Draw(screen *ebiten.Image) {
 	p.moving_particle_emiter.Draw(screen)
 	p.bullet_manager.Draw(screen, p.debug)
 
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("Idle: %t\nMoving: %t\nAttacking: %t\nAttackingMoving: %t", p.state == PlayerIdle, p.state == PlayerMoving, p.state == PlayerAttacking, p.state == PlayerMovingAttacking))
+	//ebitenutil.DebugPrint(screen, fmt.Sprintf("Idle: %t\nMoving: %t\nAttacking: %t\nAttackingMoving: %t", p.state == PlayerIdle, p.state == PlayerMoving, p.state == PlayerAttacking, p.state == PlayerMovingAttacking))
 }
 
 func (p *Player) Shoot() {
