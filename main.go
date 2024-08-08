@@ -23,6 +23,20 @@ func NewGame() *Game {
 	}
 
 	tm.LoadTexture("bullet", "./res/bullet_pink.png")
+	tm.LoadTexture("bullet0", "./res/bullet_pink0.png")
+	tm.LoadTexture("bullet1", "./res/bullet_pink1.png")
+	tm.LoadTexture("bullet2", "./res/bullet_pink2.png")
+	tm.LoadTexture("bullet3", "./res/bullet_pink3.png")
+	tm.LoadTexture("bullet4", "./res/bullet_pink4.png")
+	tm.LoadTexture("bullet5", "./res/bullet_pink5.png")
+	tm.LoadTexture("bullet6", "./res/bullet_pink6.png")
+	tm.LoadTexture("bullet7", "./res/bullet_pink7.png")
+	tm.LoadTexture("bullet_decay_0", "./res/bullet_decay_0.png")
+	tm.LoadTexture("bullet_decay_1", "./res/bullet_decay_1.png")
+	tm.LoadTexture("bullet_decay_2", "./res/bullet_decay_2.png")
+	tm.LoadTexture("bullet_decay_3", "./res/bullet_decay_3.png")
+	tm.LoadTexture("bullet_decay_4", "./res/bullet_decay_4.png")
+	tm.LoadTexture("bullet_decay_5", "./res/bullet_decay_5.png")
 	tm.LoadTexture("robot_idle_0", "./res/robot_idle_0.png")
 	tm.LoadTexture("robot_idle_1", "./res/robot_idle_1.png")
 	tm.LoadTexture("robot_idle_2", "./res/robot_idle_2.png")
@@ -82,11 +96,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideWidth int, outsideHeight int) (int, int) {
-	return outsideWidth / 2, outsideHeight / 2
+	return outsideWidth / 4, outsideHeight / 4
 }
 
 func main() {
-	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowSize(1920, 1200)
 	ebiten.SetTPS(FPS)
 	if err := ebiten.RunGame(NewGame()); err != nil {
 		panic(err)

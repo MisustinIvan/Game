@@ -82,7 +82,7 @@ func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
 		state:                  PlayerIdle,
 		attack_timer:           0,
 		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(player_size) - 10, float64(player_size) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
-		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 90, 2, 69, tm.GetTexture("bullet")),
+		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 120, 1.5, 69, tm),
 		debug:                  false,
 	}
 
