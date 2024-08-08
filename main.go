@@ -14,6 +14,7 @@ type Game struct {
 	player          *Player
 	emitters        []*ParticleEmitter
 	texture_manager *TextureManager
+	background      *ebiten.Image
 }
 
 func NewGame() *Game {
@@ -54,6 +55,8 @@ func NewGame() *Game {
 	tm.LoadTexture("robot_attack_moving_2", "./res/robot_attack_moving_2.png")
 	tm.LoadTexture("robot_attack_moving_3", "./res/robot_attack_moving_3.png")
 
+	tm.LoadTexture("background", "./res/background.png")
+
 	return &Game{
 		player: NewPlayer(Vector2{100, 100}, 100, tm),
 		emitters: []*ParticleEmitter{
@@ -62,6 +65,7 @@ func NewGame() *Game {
 			NewParticleEmitter(Vector2{300, 150}, 120, 150, 0.2, 0.4, 3, 3, color.RGBA{150, 30, 255, 255}),
 		},
 		texture_manager: tm,
+		background:      tm.GetTexture("background"),
 	}
 }
 
@@ -87,6 +91,8 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{50, 50, 55, 255})
+	op := &ebiten.DrawImageOptions{}
+	screen.DrawImage(g.background, op)
 
 	for _, emitter := range g.emitters {
 		emitter.Draw(screen)
