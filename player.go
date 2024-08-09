@@ -247,12 +247,7 @@ func (p *Player) Move(dir Vector2) {
 	walls := game.walls_quadtree.Query(p.rect)
 	for _, wall := range walls {
 		if wall.rect.Intersects(p.rect) {
-			if movement_vec.x > 0 {
-				p.rect.pos.x = wall.rect.pos.x - p.rect.extents.x - 1
-			}
-			if movement_vec.x < 0 {
-				p.rect.pos.x = wall.rect.pos.x + wall.rect.extents.x + 1
-			}
+			p.rect.ResolveX(wall.rect, movement_vec)
 		}
 	}
 	// vertical
@@ -260,13 +255,7 @@ func (p *Player) Move(dir Vector2) {
 	walls = game.walls_quadtree.Query(p.rect)
 	for _, wall := range walls {
 		if wall.rect.Intersects(p.rect) {
-
-			if movement_vec.y > 0 {
-				p.rect.pos.y = wall.rect.pos.y - p.rect.extents.y - 1
-			}
-			if movement_vec.y < 0 {
-				p.rect.pos.y = wall.rect.pos.y + wall.rect.extents.y + 1
-			}
+			p.rect.ResolveY(wall.rect, movement_vec)
 		}
 	}
 

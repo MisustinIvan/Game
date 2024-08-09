@@ -124,7 +124,7 @@ func (n QNodeStatic) Draw(screen *ebiten.Image) {
 	for _, val := range n.values {
 		screen_pos = val.rect.pos.Sub(game.camera.rect.pos)
 		//vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 1, color.RGBA{255, 0, 0, 255}, false)
-		ellen := game.texture_manager.GetTexture("ellen")
+		ellen := game.texture_manager.GetTexture("mugshot")
 		ew := float64(ellen.Bounds().Dx())
 		eh := float64(ellen.Bounds().Dy())
 		op := &ebiten.DrawImageOptions{}
