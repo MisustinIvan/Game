@@ -20,6 +20,7 @@ type Game struct {
 	background      *ebiten.Image
 	walls_quadtree  *QNodeStatic
 	camera          Camera
+	enemies         []*Enemy
 }
 
 var game *Game
@@ -58,6 +59,17 @@ func NewGame() *Game {
 	player := NewPlayer(Vector2{100, 100}, 100, tm)
 	camera := NewCamera(Vector2{960, 600}, &player.rect.pos)
 
+	enemies := []*Enemy{}
+	for i := 0; i < 100; i++ {
+		enemies = append(enemies, NewEnemy(
+			Vector2{
+				(rand.Float64() - 0.5) * 2 * 500,
+				(rand.Float64() - 0.5) * 2 * 500,
+			},
+			tm,
+		))
+	}
+
 	return &Game{
 		player: player,
 		emitters: []*ParticleEmitter{
@@ -69,6 +81,7 @@ func NewGame() *Game {
 		background:      tm.GetTexture("background"),
 		walls_quadtree:  wq,
 		camera:          camera,
+		enemies:         enemies,
 	}
 }
 
@@ -83,6 +96,9 @@ func (g *Game) Update() error {
 
 	g.player.Update()
 	g.camera.Update()
+	for _, enemy := range g.enemies {
+		enemy.Update()
+	}
 
 	for _, emitter := range g.emitters {
 		dir := Vector2{x: (rand.Float64() - 0.5) * 2, y: (-rand.Float64() / 2) - 0.5}
@@ -104,6 +120,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.player.Draw(screen)
 	g.walls_quadtree.Draw(screen)
+
+	for _, enemy := range g.enemies {
+		enemy.Draw(screen)
+	}
 
 	for _, val := range g.walls_quadtree.Query(g.player.rect) {
 		sp := val.rect.pos.Sub(g.camera.rect.pos)

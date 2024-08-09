@@ -35,7 +35,7 @@ type Player struct {
 	attack_timer           int
 	bullet_manager         BulletManager
 	debug                  bool
-	dir
+	dir                    dir
 }
 
 func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
