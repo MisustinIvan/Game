@@ -54,12 +54,12 @@ func (bm *BulletManager) Shoot(dir Vector2) {
 	bm.last = b
 }
 
-func (bm *BulletManager) Update(g *Game) {
+func (bm *BulletManager) Update() {
 	var pb *Bullet = nil
 	var cb *Bullet = bm.bullets
 
 	for cb != nil {
-		cb.Update(g)
+		cb.Update()
 
 		if cb.Decayed() {
 			if pb != nil {
@@ -74,10 +74,10 @@ func (bm *BulletManager) Update(g *Game) {
 	}
 }
 
-func (bm *BulletManager) Draw(screen *ebiten.Image, debug bool, g *Game) {
+func (bm *BulletManager) Draw(screen *ebiten.Image, debug bool) {
 	cb := bm.bullets
 	for cb != nil {
-		cb.Draw(screen, debug, g)
+		cb.Draw(screen, debug)
 		cb = cb.next
 	}
 }
@@ -99,14 +99,14 @@ type Bullet struct {
 
 func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureManager) *Bullet {
 	animation_sprites := []*ebiten.Image{
-		tm.GetTexture("bullet0"),
-		tm.GetTexture("bullet1"),
-		tm.GetTexture("bullet2"),
-		tm.GetTexture("bullet3"),
-		tm.GetTexture("bullet4"),
-		tm.GetTexture("bullet5"),
-		tm.GetTexture("bullet6"),
-		tm.GetTexture("bullet7"),
+		tm.GetTexture("bullet_pink0"),
+		tm.GetTexture("bullet_pink1"),
+		tm.GetTexture("bullet_pink2"),
+		tm.GetTexture("bullet_pink3"),
+		tm.GetTexture("bullet_pink4"),
+		tm.GetTexture("bullet_pink5"),
+		tm.GetTexture("bullet_pink6"),
+		tm.GetTexture("bullet_pink7"),
 	}
 
 	decay_spirtes := []*ebiten.Image{
@@ -143,8 +143,8 @@ func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureMa
 	return b
 }
 
-func (b *Bullet) Update(g *Game) {
-	walls := g.walls_quadtree.Query(NewRect(b.pos, b.hitbox))
+func (b *Bullet) Update() {
+	walls := game.walls_quadtree.Query(NewRect(b.pos, b.hitbox))
 	if len(walls) != 0 {
 		if b.lifetime > 0 {
 			b.lifetime = 0
@@ -185,10 +185,10 @@ func (b *Bullet) Decayed() bool {
 	return b.lifetime <= -b.decay_time
 }
 
-func (b *Bullet) Draw(screen *ebiten.Image, debug bool, g *Game) {
-	b.emitter.Draw(screen, g)
+func (b *Bullet) Draw(screen *ebiten.Image, debug bool) {
+	b.emitter.Draw(screen)
 	op := &ebiten.DrawImageOptions{}
-	sp := b.pos.Sub(g.camera.rect.pos)
+	sp := b.pos.Sub(game.camera.rect.pos)
 	op.GeoM.Translate(sp.x, sp.y)
 	screen.DrawImage(b.sprite, op)
 	if debug {

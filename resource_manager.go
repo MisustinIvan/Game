@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os"
+	"path"
+	"strings"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
@@ -26,6 +30,33 @@ func (r *TextureManager) LoadTexture(key string, path string) error {
 		r.resources[key] = tex
 		return nil
 	}
+}
+
+func (r *TextureManager) LoadTextures(dir string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	dir = path.Join(cwd, dir)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			name := entry.Name()
+			if strings.HasSuffix(name, ".png") {
+				key := strings.Split(name, ".")[0]
+				err := r.LoadTexture(key, path.Join(dir, name))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (r *TextureManager) AddTexture(key string, tex *ebiten.Image) {

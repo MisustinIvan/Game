@@ -21,8 +21,7 @@ const emit_timeout = 1
 const player_size = 32
 
 type Player struct {
-	pos                    Vector2
-	hitbox                 Vector2
+	rect                   Rect
 	health                 int
 	xp                     int
 	lvl                    int
@@ -69,8 +68,7 @@ func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
 	}
 
 	p := &Player{
-		pos:                    pos,
-		hitbox:                 Vector2{float64(player_size), float64(player_size)},
+		rect:                   NewRect(pos, Vector2{float64(player_size), float64(player_size)}),
 		health:                 health,
 		xp:                     0,
 		lvl:                    0,
@@ -130,27 +128,25 @@ func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
 	return p
 }
 
-func (p Player) Draw(screen *ebiten.Image, g *Game) {
+func (p Player) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	if p.dir == right {
 		op.GeoM.Scale(-1, 1)
-		op.GeoM.Translate(p.hitbox.x-1, 0)
+		op.GeoM.Translate(p.rect.extents.x-1, 0)
 	}
 
-	screen_pos := p.pos.Sub(g.camera.rect.pos)
+	screen_pos := p.rect.pos.Sub(game.camera.rect.pos)
 
 	op.GeoM.Translate(screen_pos.x, screen_pos.y)
 
 	screen.DrawImage(p.sprite, op)
 
 	if p.debug {
-		vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(p.hitbox.x), float32(p.hitbox.y), 1, color.RGBA{255, 0, 0, 255}, false)
+		vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(p.rect.extents.x), float32(p.rect.extents.y), 1, color.RGBA{255, 0, 0, 255}, false)
 	}
 
-	p.moving_particle_emiter.Draw(screen, g)
-	p.bullet_manager.Draw(screen, p.debug, g)
-
-	//ebitenutil.DebugPrint(screen, fmt.Sprintf("Idle: %t\nMoving: %t\nAttacking: %t\nAttackingMoving: %t", p.state == PlayerIdle, p.state == PlayerMoving, p.state == PlayerAttacking, p.state == PlayerMovingAttacking))
+	p.moving_particle_emiter.Draw(screen)
+	p.bullet_manager.Draw(screen, p.debug)
 }
 
 func (p *Player) Shoot() {
@@ -160,6 +156,8 @@ func (p *Player) Shoot() {
 	} else {
 		dir.x = 1
 	}
+
+	dir.y = (rand.Float64() - 0.5) * 2
 
 	p.bullet_manager.Shoot(dir)
 
@@ -174,15 +172,15 @@ func (p *Player) Shoot() {
 
 func (p *Player) Emit() {
 	vel := Vector2{0, 0}
-	pos := p.pos
-	pos.y += p.hitbox.y
+	pos := p.rect.pos
+	pos.y += p.rect.extents.y
 	switch p.dir {
 	case left:
 		vel.x = 1
-		pos.x = p.pos.x + p.hitbox.x
+		pos.x = p.rect.pos.x + p.rect.extents.x
 	case right:
 		vel.x = -1
-		pos.x = p.pos.x
+		pos.x = p.rect.pos.x
 	}
 
 	vel.y = (rand.Float64() / -2) - 0.5
@@ -193,7 +191,7 @@ func (p *Player) Emit() {
 	p.moving_particle_emiter.Emit(vel)
 }
 
-func (p *Player) Update(g *Game) {
+func (p *Player) Update() {
 	diff := Vector2{0, 0}
 	move := false
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
@@ -216,7 +214,7 @@ func (p *Player) Update(g *Game) {
 	p.animation_task.Update()
 
 	if move {
-		p.Move(diff, g)
+		p.Move(diff)
 		p.emit_task.Update()
 	} else if p.attack_timer == 0 {
 		p.state = PlayerIdle
@@ -233,10 +231,10 @@ func (p *Player) Update(g *Game) {
 	p.animation_task.Update()
 
 	p.moving_particle_emiter.Update()
-	p.bullet_manager.Update(g)
+	p.bullet_manager.Update()
 }
 
-func (p *Player) Move(dir Vector2, g *Game) {
+func (p *Player) Move(dir Vector2) {
 	if p.attack_timer > 0 {
 		p.state = PlayerMovingAttacking
 	} else {
@@ -244,46 +242,44 @@ func (p *Player) Move(dir Vector2, g *Game) {
 	}
 
 	movement_vec := dir.Norm().Scale(p.speed)
-	p_rect := NewRect(p.pos, p.hitbox)
 	// horizontal
-	p_rect.pos.x += movement_vec.x
-	walls := g.walls_quadtree.Query(p_rect)
+	p.rect.pos.x += movement_vec.x
+	walls := game.walls_quadtree.Query(p.rect)
 	for _, wall := range walls {
-		if wall.rect.Intersects(p_rect) {
+		if wall.rect.Intersects(p.rect) {
 			if movement_vec.x > 0 {
-				p_rect.pos.x = wall.rect.pos.x - p_rect.extents.x - 1
+				p.rect.pos.x = wall.rect.pos.x - p.rect.extents.x - 1
 			}
 			if movement_vec.x < 0 {
-				p_rect.pos.x = wall.rect.pos.x + wall.rect.extents.x + 1
+				p.rect.pos.x = wall.rect.pos.x + wall.rect.extents.x + 1
 			}
 		}
 	}
 	// vertical
-	p_rect.pos.y += movement_vec.y
-	walls = g.walls_quadtree.Query(p_rect)
+	p.rect.pos.y += movement_vec.y
+	walls = game.walls_quadtree.Query(p.rect)
 	for _, wall := range walls {
-		if wall.rect.Intersects(p_rect) {
+		if wall.rect.Intersects(p.rect) {
+
 			if movement_vec.y > 0 {
-				p_rect.pos.y = wall.rect.pos.y - p_rect.extents.y - 1
+				p.rect.pos.y = wall.rect.pos.y - p.rect.extents.y - 1
 			}
 			if movement_vec.y < 0 {
-				p_rect.pos.y = wall.rect.pos.y + wall.rect.extents.y + 1
+				p.rect.pos.y = wall.rect.pos.y + wall.rect.extents.y + 1
 			}
 		}
 	}
 
-	p.pos = p_rect.pos
-
 	if dir.x < 0 {
 		p.dir = left
-		p.moving_particle_emiter.pos.x = p.pos.x + p.hitbox.x - 10
-		p.bullet_manager.pos.x = p.pos.x - 16
+		p.moving_particle_emiter.pos.x = p.rect.pos.x + p.rect.extents.x - 10
+		p.bullet_manager.pos.x = p.rect.pos.x - 16
 	} else if dir.x > 0 {
 		p.dir = right
-		p.moving_particle_emiter.pos.x = p.pos.x + 4
-		p.bullet_manager.pos.x = p.pos.x + p.hitbox.x
+		p.moving_particle_emiter.pos.x = p.rect.pos.x + 4
+		p.bullet_manager.pos.x = p.rect.pos.x + p.rect.extents.x
 	}
 
-	p.moving_particle_emiter.pos.y = p.pos.y + p.hitbox.y - 4
-	p.bullet_manager.pos.y = p.pos.y
+	p.moving_particle_emiter.pos.y = p.rect.pos.y + p.rect.extents.y - 4
+	p.bullet_manager.pos.y = p.rect.pos.y
 }

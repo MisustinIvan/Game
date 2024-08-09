@@ -12,30 +12,6 @@ type Entity struct {
 	rect Rect
 }
 
-type Rect struct {
-	pos     Vector2
-	extents Vector2
-}
-
-func NewRect(pos Vector2, extents Vector2) Rect {
-	return Rect{
-		pos:     pos,
-		extents: extents,
-	}
-}
-
-func (r Rect) Intersects(o Rect) bool {
-	return !(r.pos.x+r.extents.x <= o.pos.x ||
-		r.pos.x >= o.pos.x+o.extents.x ||
-		r.pos.y+r.extents.y <= o.pos.y ||
-		r.pos.y >= o.pos.y+o.extents.y)
-}
-
-func (r Rect) Contains(o Rect) bool {
-	return (r.pos.x <= o.pos.x && o.pos.x+o.extents.x <= r.pos.x+r.extents.x &&
-		r.pos.y <= o.pos.y && o.pos.y+o.extents.y <= r.pos.y+r.extents.y)
-}
-
 type QNodeStatic struct {
 	rect     Rect
 	children [4]*QNodeStatic
@@ -141,14 +117,14 @@ func (n QNodeStatic) Count() int {
 	return res + len(n.values)
 }
 
-func (n QNodeStatic) Draw(screen *ebiten.Image, g *Game) {
-	screen_pos := n.rect.pos.Sub(g.camera.rect.pos)
+func (n QNodeStatic) Draw(screen *ebiten.Image) {
+	screen_pos := n.rect.pos.Sub(game.camera.rect.pos)
 	vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(n.rect.extents.x), float32(n.rect.extents.y), 1, color.RGBA{255, 255, 0, 255}, false)
 
 	for _, val := range n.values {
-		screen_pos = val.rect.pos.Sub(g.camera.rect.pos)
+		screen_pos = val.rect.pos.Sub(game.camera.rect.pos)
 		//vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 1, color.RGBA{255, 0, 0, 255}, false)
-		ellen := g.texture_manager.GetTexture("ellen")
+		ellen := game.texture_manager.GetTexture("ellen")
 		ew := float64(ellen.Bounds().Dx())
 		eh := float64(ellen.Bounds().Dy())
 		op := &ebiten.DrawImageOptions{}
@@ -159,7 +135,7 @@ func (n QNodeStatic) Draw(screen *ebiten.Image, g *Game) {
 
 	if !n.leaf {
 		for _, child := range n.children {
-			child.Draw(screen, g)
+			child.Draw(screen)
 		}
 	}
 }

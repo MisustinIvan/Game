@@ -22,46 +22,19 @@ type Game struct {
 	camera          Camera
 }
 
+var game *Game
+
 func NewGame() *Game {
 	tm, err := NewTextureManager("./res/unknown.png")
 	if err != nil {
 		panic(err)
 	}
 
-	tm.LoadTexture("bullet", "./res/bullet_pink.png")
-	tm.LoadTexture("bullet0", "./res/bullet_pink0.png")
-	tm.LoadTexture("bullet1", "./res/bullet_pink1.png")
-	tm.LoadTexture("bullet2", "./res/bullet_pink2.png")
-	tm.LoadTexture("bullet3", "./res/bullet_pink3.png")
-	tm.LoadTexture("bullet4", "./res/bullet_pink4.png")
-	tm.LoadTexture("bullet5", "./res/bullet_pink5.png")
-	tm.LoadTexture("bullet6", "./res/bullet_pink6.png")
-	tm.LoadTexture("bullet7", "./res/bullet_pink7.png")
-	tm.LoadTexture("bullet_decay_0", "./res/bullet_decay_0.png")
-	tm.LoadTexture("bullet_decay_1", "./res/bullet_decay_1.png")
-	tm.LoadTexture("bullet_decay_2", "./res/bullet_decay_2.png")
-	tm.LoadTexture("bullet_decay_3", "./res/bullet_decay_3.png")
-	tm.LoadTexture("bullet_decay_4", "./res/bullet_decay_4.png")
-	tm.LoadTexture("bullet_decay_5", "./res/bullet_decay_5.png")
-	tm.LoadTexture("robot_idle_0", "./res/robot_idle_0.png")
-	tm.LoadTexture("robot_idle_1", "./res/robot_idle_1.png")
-	tm.LoadTexture("robot_idle_2", "./res/robot_idle_2.png")
-	tm.LoadTexture("robot_idle_3", "./res/robot_idle_3.png")
-	tm.LoadTexture("robot_moving_0", "./res/robot_moving_0.png")
-	tm.LoadTexture("robot_moving_1", "./res/robot_moving_1.png")
-	tm.LoadTexture("robot_moving_2", "./res/robot_moving_2.png")
-	tm.LoadTexture("robot_moving_3", "./res/robot_moving_3.png")
-	tm.LoadTexture("robot_attack_0", "./res/robot_attack_0.png")
-	tm.LoadTexture("robot_attack_1", "./res/robot_attack_1.png")
-	tm.LoadTexture("robot_attack_2", "./res/robot_attack_2.png")
-	tm.LoadTexture("robot_attack_3", "./res/robot_attack_3.png")
-	tm.LoadTexture("robot_attack_moving_0", "./res/robot_attack_moving_0.png")
-	tm.LoadTexture("robot_attack_moving_1", "./res/robot_attack_moving_1.png")
-	tm.LoadTexture("robot_attack_moving_2", "./res/robot_attack_moving_2.png")
-	tm.LoadTexture("robot_attack_moving_3", "./res/robot_attack_moving_3.png")
-	tm.LoadTexture("ellen", "./res/ellen.png")
+	err = tm.LoadTextures("./res/")
+	if err != nil {
+		panic(err)
+	}
 
-	tm.LoadTexture("background", "./res/background.png")
 	wq := NewStaticNode(NewRect(Vector2{0, 0}, Vector2{960, 600}), 4)
 	for i := 0; i < 50; i++ {
 
@@ -83,7 +56,7 @@ func NewGame() *Game {
 	}
 
 	player := NewPlayer(Vector2{100, 100}, 100, tm)
-	camera := NewCamera(Vector2{960, 600}, &player.pos)
+	camera := NewCamera(Vector2{960, 600}, &player.rect.pos)
 
 	return &Game{
 		player: player,
@@ -108,7 +81,7 @@ func (g *Game) Update() error {
 		g.player.debug = !g.player.debug
 	}
 
-	g.player.Update(g)
+	g.player.Update()
 	g.camera.Update()
 
 	for _, emitter := range g.emitters {
@@ -127,12 +100,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(g.background, op)
 
 	for _, emitter := range g.emitters {
-		emitter.Draw(screen, g)
+		emitter.Draw(screen)
 	}
-	g.player.Draw(screen, g)
-	g.walls_quadtree.Draw(screen, g)
+	g.player.Draw(screen)
+	g.walls_quadtree.Draw(screen)
 
-	for _, val := range g.walls_quadtree.Query(NewRect(g.player.pos, g.player.hitbox)) {
+	for _, val := range g.walls_quadtree.Query(g.player.rect) {
 		sp := val.rect.pos.Sub(g.camera.rect.pos)
 		vector.StrokeRect(screen, float32(sp.x), float32(sp.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{0, 0, 255, 255}, false)
 	}
@@ -146,7 +119,8 @@ func (g *Game) Layout(outsideWidth int, outsideHeight int) (int, int) {
 func main() {
 	ebiten.SetWindowSize(1920, 1200)
 	ebiten.SetTPS(FPS)
-	if err := ebiten.RunGame(NewGame()); err != nil {
+	game = NewGame()
+	if err := ebiten.RunGame(game); err != nil {
 		panic(err)
 	}
 }
