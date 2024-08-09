@@ -54,12 +54,12 @@ func (bm *BulletManager) Shoot(dir Vector2) {
 	bm.last = b
 }
 
-func (bm *BulletManager) Update() {
+func (bm *BulletManager) Update(g *Game) {
 	var pb *Bullet = nil
 	var cb *Bullet = bm.bullets
 
 	for cb != nil {
-		cb.Update()
+		cb.Update(g)
 
 		if cb.Decayed() {
 			if pb != nil {
@@ -74,10 +74,10 @@ func (bm *BulletManager) Update() {
 	}
 }
 
-func (bm *BulletManager) Draw(screen *ebiten.Image, debug bool) {
+func (bm *BulletManager) Draw(screen *ebiten.Image, debug bool, g *Game) {
 	cb := bm.bullets
 	for cb != nil {
-		cb.Draw(screen, debug)
+		cb.Draw(screen, debug, g)
 		cb = cb.next
 	}
 }
@@ -94,6 +94,7 @@ type Bullet struct {
 	animator   *Animator[int]
 	emitter    *ParticleEmitter
 	emit_task  *Task
+	moving     bool
 }
 
 func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureManager) *Bullet {
@@ -125,6 +126,7 @@ func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureMa
 		decay_time: len(decay_spirtes) * BulletAnimationTimeout,
 		sprite:     animation_sprites[0],
 		damage:     damage,
+		moving:     true,
 	}
 
 	b.emitter = NewParticleEmitter(b.pos.Add(b.hitbox.Scale(0.5)), 20, 40, 0.6, 0.9, 3, 2, color.RGBA{215, 0, 255, 255})
@@ -141,10 +143,21 @@ func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureMa
 	return b
 }
 
-func (b *Bullet) Update() {
+func (b *Bullet) Update(g *Game) {
+	walls := g.walls_quadtree.Query(NewRect(b.pos, b.hitbox))
+	if len(walls) != 0 {
+		if b.lifetime > 0 {
+			b.lifetime = 0
+			b.moving = false
+		}
+	}
+
 	if b.StartedDecaying() {
 		b.animator.SetAnimation(1)
 		b.vel.ScaleEq(0.5)
+		if !b.moving {
+			b.lifetime -= BulletAnimationTimeout
+		}
 	}
 
 	if !b.Decaying() {
@@ -152,7 +165,9 @@ func (b *Bullet) Update() {
 		b.emit_task.Update()
 	}
 
-	b.pos.AddEq(b.vel)
+	if b.moving {
+		b.pos.AddEq(b.vel)
+	}
 	b.lifetime -= 1
 	b.animator.Update()
 	b.emitter.Update()
@@ -170,12 +185,13 @@ func (b *Bullet) Decayed() bool {
 	return b.lifetime <= -b.decay_time
 }
 
-func (b *Bullet) Draw(screen *ebiten.Image, debug bool) {
-	b.emitter.Draw(screen)
+func (b *Bullet) Draw(screen *ebiten.Image, debug bool, g *Game) {
+	b.emitter.Draw(screen, g)
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(b.pos.x, b.pos.y)
+	sp := b.pos.Sub(g.camera.rect.pos)
+	op.GeoM.Translate(sp.x, sp.y)
 	screen.DrawImage(b.sprite, op)
 	if debug {
-		vector.StrokeRect(screen, float32(b.pos.x), float32(b.pos.y), float32(b.hitbox.x), float32(b.hitbox.y), 2, color.RGBA{255, 0, 0, 255}, false)
+		vector.StrokeRect(screen, float32(sp.x), float32(sp.y), float32(b.hitbox.x), float32(b.hitbox.y), 1, color.RGBA{255, 0, 0, 255}, false)
 	}
 }

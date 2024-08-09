@@ -80,7 +80,7 @@ func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
 		state:                  PlayerIdle,
 		attack_timer:           0,
 		moving_particle_emiter: *NewParticleEmitter(pos.Add(Vector2{float64(player_size) - 10, float64(player_size) - 4}), 45, 60, 0.4, 0.6, 4, 4, color.RGBA{60, 60, 75, 255}),
-		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 120, 1.5, 69, tm),
+		bullet_manager:         *NewBulletManager(pos.Add(Vector2{-16, 0}), 120, 3, 69, tm),
 		debug:                  false,
 	}
 
@@ -130,23 +130,25 @@ func NewPlayer(pos Vector2, health int, tm *TextureManager) *Player {
 	return p
 }
 
-func (p Player) Draw(screen *ebiten.Image) {
+func (p Player) Draw(screen *ebiten.Image, g *Game) {
 	op := &ebiten.DrawImageOptions{}
 	if p.dir == right {
 		op.GeoM.Scale(-1, 1)
-		op.GeoM.Translate(p.hitbox.x, 0)
+		op.GeoM.Translate(p.hitbox.x-1, 0)
 	}
 
-	op.GeoM.Translate(p.pos.x, p.pos.y)
+	screen_pos := p.pos.Sub(g.camera.rect.pos)
+
+	op.GeoM.Translate(screen_pos.x, screen_pos.y)
 
 	screen.DrawImage(p.sprite, op)
 
 	if p.debug {
-		vector.StrokeRect(screen, float32(p.pos.x), float32(p.pos.y), float32(p.hitbox.x), float32(p.hitbox.y), 1, color.RGBA{255, 0, 0, 255}, false)
+		vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(p.hitbox.x), float32(p.hitbox.y), 1, color.RGBA{255, 0, 0, 255}, false)
 	}
 
-	p.moving_particle_emiter.Draw(screen)
-	p.bullet_manager.Draw(screen, p.debug)
+	p.moving_particle_emiter.Draw(screen, g)
+	p.bullet_manager.Draw(screen, p.debug, g)
 
 	//ebitenutil.DebugPrint(screen, fmt.Sprintf("Idle: %t\nMoving: %t\nAttacking: %t\nAttackingMoving: %t", p.state == PlayerIdle, p.state == PlayerMoving, p.state == PlayerAttacking, p.state == PlayerMovingAttacking))
 }
@@ -214,7 +216,7 @@ func (p *Player) Update(g *Game) {
 	p.animation_task.Update()
 
 	if move {
-		p.Move(diff)
+		p.Move(diff, g)
 		p.emit_task.Update()
 	} else if p.attack_timer == 0 {
 		p.state = PlayerIdle
@@ -231,27 +233,57 @@ func (p *Player) Update(g *Game) {
 	p.animation_task.Update()
 
 	p.moving_particle_emiter.Update()
-	p.bullet_manager.Update()
+	p.bullet_manager.Update(g)
 }
 
-func (p *Player) Move(diff Vector2) {
+func (p *Player) Move(dir Vector2, g *Game) {
 	if p.attack_timer > 0 {
 		p.state = PlayerMovingAttacking
 	} else {
 		p.state = PlayerMoving
 	}
 
-	if diff.x < 0 {
+	movement_vec := dir.Norm().Scale(p.speed)
+	p_rect := NewRect(p.pos, p.hitbox)
+	// horizontal
+	p_rect.pos.x += movement_vec.x
+	walls := g.walls_quadtree.Query(p_rect)
+	for _, wall := range walls {
+		if wall.rect.Intersects(p_rect) {
+			if movement_vec.x > 0 {
+				p_rect.pos.x = wall.rect.pos.x - p_rect.extents.x - 1
+			}
+			if movement_vec.x < 0 {
+				p_rect.pos.x = wall.rect.pos.x + wall.rect.extents.x + 1
+			}
+		}
+	}
+	// vertical
+	p_rect.pos.y += movement_vec.y
+	walls = g.walls_quadtree.Query(p_rect)
+	for _, wall := range walls {
+		if wall.rect.Intersects(p_rect) {
+			if movement_vec.y > 0 {
+				p_rect.pos.y = wall.rect.pos.y - p_rect.extents.y - 1
+			}
+			if movement_vec.y < 0 {
+				p_rect.pos.y = wall.rect.pos.y + wall.rect.extents.y + 1
+			}
+		}
+	}
+
+	p.pos = p_rect.pos
+
+	if dir.x < 0 {
 		p.dir = left
 		p.moving_particle_emiter.pos.x = p.pos.x + p.hitbox.x - 10
 		p.bullet_manager.pos.x = p.pos.x - 16
-	} else if diff.x > 0 {
+	} else if dir.x > 0 {
 		p.dir = right
 		p.moving_particle_emiter.pos.x = p.pos.x + 4
 		p.bullet_manager.pos.x = p.pos.x + p.hitbox.x
 	}
 
-	p.pos = p.pos.Add(diff.Norm().Scale(p.speed))
 	p.moving_particle_emiter.pos.y = p.pos.y + p.hitbox.y - 4
 	p.bullet_manager.pos.y = p.pos.y
 }

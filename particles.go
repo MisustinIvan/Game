@@ -71,10 +71,11 @@ func (e *ParticleEmitter) Update() {
 	}
 }
 
-func (e *ParticleEmitter) Draw(screen *ebiten.Image) {
+func (e *ParticleEmitter) Draw(screen *ebiten.Image, g *Game) {
 	cp := e.particles
 	for cp != nil {
-		vector.DrawFilledRect(screen, float32(cp.pos.x), float32(cp.pos.y), e.size_x, e.size_y, e.color, false)
+		sp := cp.pos.Sub(g.camera.rect.pos)
+		vector.DrawFilledRect(screen, float32(sp.x), float32(sp.y), e.size_x, e.size_y, e.color, false)
 		cp = cp.next
 	}
 }

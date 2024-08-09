@@ -25,10 +25,10 @@ func NewRect(pos Vector2, extents Vector2) Rect {
 }
 
 func (r Rect) Intersects(o Rect) bool {
-	return !(r.pos.x+r.extents.x < o.pos.x ||
-		r.pos.x > o.pos.x+o.extents.x ||
-		r.pos.y+r.extents.y < o.pos.y ||
-		r.pos.y > o.pos.y+o.extents.y)
+	return !(r.pos.x+r.extents.x <= o.pos.x ||
+		r.pos.x >= o.pos.x+o.extents.x ||
+		r.pos.y+r.extents.y <= o.pos.y ||
+		r.pos.y >= o.pos.y+o.extents.y)
 }
 
 func (r Rect) Contains(o Rect) bool {
@@ -141,16 +141,25 @@ func (n QNodeStatic) Count() int {
 	return res + len(n.values)
 }
 
-func (n QNodeStatic) Draw(screen *ebiten.Image) {
-	vector.StrokeRect(screen, float32(n.rect.pos.x), float32(n.rect.pos.y), float32(n.rect.extents.x), float32(n.rect.extents.y), 2, color.RGBA{255, 0, 0, 255}, false)
+func (n QNodeStatic) Draw(screen *ebiten.Image, g *Game) {
+	screen_pos := n.rect.pos.Sub(g.camera.rect.pos)
+	vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(n.rect.extents.x), float32(n.rect.extents.y), 1, color.RGBA{255, 255, 0, 255}, false)
 
 	for _, val := range n.values {
-		vector.StrokeRect(screen, float32(val.rect.pos.x), float32(val.rect.pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{255, 0, 0, 255}, false)
+		screen_pos = val.rect.pos.Sub(g.camera.rect.pos)
+		//vector.StrokeRect(screen, float32(screen_pos.x), float32(screen_pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 1, color.RGBA{255, 0, 0, 255}, false)
+		ellen := g.texture_manager.GetTexture("ellen")
+		ew := float64(ellen.Bounds().Dx())
+		eh := float64(ellen.Bounds().Dy())
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Scale(val.rect.extents.x/ew, val.rect.extents.y/eh)
+		op.GeoM.Translate(screen_pos.x, screen_pos.y)
+		screen.DrawImage(ellen, op)
 	}
 
 	if !n.leaf {
 		for _, child := range n.children {
-			child.Draw(screen)
+			child.Draw(screen, g)
 		}
 	}
 }

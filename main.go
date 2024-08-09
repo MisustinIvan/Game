@@ -19,6 +19,7 @@ type Game struct {
 	texture_manager *TextureManager
 	background      *ebiten.Image
 	walls_quadtree  *QNodeStatic
+	camera          Camera
 }
 
 func NewGame() *Game {
@@ -58,10 +59,11 @@ func NewGame() *Game {
 	tm.LoadTexture("robot_attack_moving_1", "./res/robot_attack_moving_1.png")
 	tm.LoadTexture("robot_attack_moving_2", "./res/robot_attack_moving_2.png")
 	tm.LoadTexture("robot_attack_moving_3", "./res/robot_attack_moving_3.png")
+	tm.LoadTexture("ellen", "./res/ellen.png")
 
 	tm.LoadTexture("background", "./res/background.png")
 	wq := NewStaticNode(NewRect(Vector2{0, 0}, Vector2{960, 600}), 4)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 
 		rect := Rect{
 			pos: Vector2{
@@ -69,8 +71,8 @@ func NewGame() *Game {
 				y: rand.Float64() * 580,
 			},
 			extents: Vector2{
-				x: rand.Float64() * 20,
-				y: rand.Float64() * 20,
+				x: rand.Float64() * 80,
+				y: rand.Float64() * 80,
 			},
 		}
 
@@ -80,8 +82,11 @@ func NewGame() *Game {
 		})
 	}
 
+	player := NewPlayer(Vector2{100, 100}, 100, tm)
+	camera := NewCamera(Vector2{960, 600}, &player.pos)
+
 	return &Game{
-		player: NewPlayer(Vector2{100, 100}, 100, tm),
+		player: player,
 		emitters: []*ParticleEmitter{
 			NewParticleEmitter(Vector2{100, 150}, 90, 120, 0.3, 0.5, 2, 6, color.RGBA{255, 30, 150, 255}),
 			NewParticleEmitter(Vector2{200, 200}, 60, 90, 0.6, 0.8, 2, 2, color.RGBA{30, 255, 150, 255}),
@@ -90,6 +95,7 @@ func NewGame() *Game {
 		texture_manager: tm,
 		background:      tm.GetTexture("background"),
 		walls_quadtree:  wq,
+		camera:          camera,
 	}
 }
 
@@ -103,6 +109,7 @@ func (g *Game) Update() error {
 	}
 
 	g.player.Update(g)
+	g.camera.Update()
 
 	for _, emitter := range g.emitters {
 		dir := Vector2{x: (rand.Float64() - 0.5) * 2, y: (-rand.Float64() / 2) - 0.5}
@@ -116,16 +123,18 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{50, 50, 55, 255})
 	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(-g.camera.rect.pos.x, -g.camera.rect.pos.y)
 	screen.DrawImage(g.background, op)
 
 	for _, emitter := range g.emitters {
-		emitter.Draw(screen)
+		emitter.Draw(screen, g)
 	}
-	g.player.Draw(screen)
-	g.walls_quadtree.Draw(screen)
+	g.player.Draw(screen, g)
+	g.walls_quadtree.Draw(screen, g)
 
 	for _, val := range g.walls_quadtree.Query(NewRect(g.player.pos, g.player.hitbox)) {
-		vector.StrokeRect(screen, float32(val.rect.pos.x), float32(val.rect.pos.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{0, 0, 255, 255}, false)
+		sp := val.rect.pos.Sub(g.camera.rect.pos)
+		vector.StrokeRect(screen, float32(sp.x), float32(sp.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{0, 0, 255, 255}, false)
 	}
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
