@@ -144,14 +144,6 @@ func NewBullet(pos Vector2, vel Vector2, lifetime int, damage int, tm *TextureMa
 }
 
 func (b *Bullet) Update() {
-	walls := game.walls_quadtree.Query(NewRect(b.pos, b.hitbox))
-	if len(walls) != 0 {
-		if b.lifetime > 0 {
-			b.lifetime = 0
-			b.moving = false
-		}
-	}
-
 	if b.StartedDecaying() {
 		b.animator.SetAnimation(1)
 		b.vel.ScaleEq(0.5)

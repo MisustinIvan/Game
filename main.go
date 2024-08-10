@@ -8,7 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const FPS = 120
@@ -18,9 +17,9 @@ type Game struct {
 	emitters        []*ParticleEmitter
 	texture_manager *TextureManager
 	background      *ebiten.Image
-	walls_quadtree  *QNodeStatic
 	camera          Camera
 	enemies         []*Enemy
+	enemies_grid    SpatialGrid
 }
 
 var game *Game
@@ -36,31 +35,12 @@ func NewGame() *Game {
 		panic(err)
 	}
 
-	wq := NewStaticNode(NewRect(Vector2{0, 0}, Vector2{960, 600}), 4)
-	for i := 0; i < 50; i++ {
-
-		rect := Rect{
-			pos: Vector2{
-				x: rand.Float64() * 940,
-				y: rand.Float64() * 580,
-			},
-			extents: Vector2{
-				x: rand.Float64() * 80,
-				y: rand.Float64() * 80,
-			},
-		}
-
-		wq.Insert(Entity{
-			id:   i,
-			rect: rect,
-		})
-	}
-
 	player := NewPlayer(Vector2{100, 100}, 100, tm)
 	camera := NewCamera(Vector2{960, 600}, &player.rect.pos)
 
+	enemies_grid := NewSpatialGrid(100, 100, 32)
 	enemies := []*Enemy{}
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		enemies = append(enemies, NewEnemy(
 			Vector2{
 				(rand.Float64() - 0.5) * 2 * 500,
@@ -79,9 +59,9 @@ func NewGame() *Game {
 		},
 		texture_manager: tm,
 		background:      tm.GetTexture("background"),
-		walls_quadtree:  wq,
 		camera:          camera,
 		enemies:         enemies,
+		enemies_grid:    enemies_grid,
 	}
 }
 
@@ -106,6 +86,12 @@ func (g *Game) Update() error {
 		emitter.Update()
 	}
 
+	game.enemies_grid.Clear()
+
+	for _, enemy := range g.enemies {
+		game.enemies_grid.Insert(enemy)
+	}
+
 	return nil
 }
 
@@ -119,16 +105,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		emitter.Draw(screen)
 	}
 	g.player.Draw(screen)
-	g.walls_quadtree.Draw(screen)
-
 	for _, enemy := range g.enemies {
 		enemy.Draw(screen)
 	}
 
-	for _, val := range g.walls_quadtree.Query(g.player.rect) {
-		sp := val.rect.pos.Sub(g.camera.rect.pos)
-		vector.StrokeRect(screen, float32(sp.x), float32(sp.y), float32(val.rect.extents.x), float32(val.rect.extents.y), 2, color.RGBA{0, 0, 255, 255}, false)
-	}
+	DebugDrawEnemies(screen, game.enemies_grid.GetNearbyEnemies(game.player.rect.pos))
+
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %f\nFPS: %f", ebiten.ActualTPS(), ebiten.ActualFPS()))
 }
 

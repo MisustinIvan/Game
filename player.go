@@ -241,23 +241,7 @@ func (p *Player) Move(dir Vector2) {
 		p.state = PlayerMoving
 	}
 
-	movement_vec := dir.Norm().Scale(p.speed)
-	// horizontal
-	p.rect.pos.x += movement_vec.x
-	walls := game.walls_quadtree.Query(p.rect)
-	for _, wall := range walls {
-		if wall.rect.Intersects(p.rect) {
-			p.rect.ResolveX(wall.rect, movement_vec)
-		}
-	}
-	// vertical
-	p.rect.pos.y += movement_vec.y
-	walls = game.walls_quadtree.Query(p.rect)
-	for _, wall := range walls {
-		if wall.rect.Intersects(p.rect) {
-			p.rect.ResolveY(wall.rect, movement_vec)
-		}
-	}
+	p.rect.pos.AddEq(dir.Norm().Scale(p.speed))
 
 	if dir.x < 0 {
 		p.dir = left
